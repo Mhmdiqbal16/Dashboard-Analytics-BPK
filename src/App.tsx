@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 import { useEffect, useMemo, useState } from "react";
-=======
-﻿import { useEffect, useMemo, useState } from "react";
->>>>>>> 832225d (feat: update dashboard UI - pie chart leader lines, monthly charts with year labels, sidebar toggle, data parsing improvements)
 import "./App.css";
 import {
   PieChart,
