@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import {
   PieChart,
@@ -239,6 +239,350 @@ function CalendarHeatmap({ data, year }: { data: Record<string, number>; year: s
         ))}
         <span>Banyak</span>
       </div>
+    </div>
+  );
+}
+
+/* ================== GOOGLE-STYLE AUTOCOMPLETE SEARCH ================== */
+function AutocompleteSearch({
+  value,
+  onChange,
+  rows,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  rows: any[];
+}) {
+  const [open, setOpen] = useState(false);
+  const [activeIdx, setActiveIdx] = useState(-1);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Build unique suggestion pool from all text fields
+  const suggestionPool = useMemo(() => {
+    const fields = ['akun', 'satker', 'sumberDana', 'deskripsi', 'kodePeriode'];
+    const fieldLabels: Record<string, string> = {
+      akun: 'Akun',
+      satker: 'Satker',
+      sumberDana: 'Sumber Dana',
+      deskripsi: 'Deskripsi',
+      kodePeriode: 'Kode',
+    };
+    const seen = new Set<string>();
+    const pool: { text: string; category: string }[] = [];
+    rows.forEach((r) => {
+      fields.forEach((f) => {
+        const val = r[f];
+        if (val && val !== '-' && !seen.has(val)) {
+          seen.add(val);
+          pool.push({ text: val, category: fieldLabels[f] || f });
+        }
+      });
+    });
+    return pool;
+  }, [rows]);
+
+  const suggestions = useMemo(() => {
+    if (!value.trim()) return [];
+    const q = value.toLowerCase();
+    return suggestionPool
+      .filter((s) => s.text.toLowerCase().includes(q))
+      .slice(0, 8);
+  }, [value, suggestionPool]);
+
+  const showDropdown = open && value.trim().length > 0 && suggestions.length > 0;
+
+  // Close on click outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const selectItem = useCallback(
+    (text: string) => {
+      onChange(text);
+      setOpen(false);
+      setActiveIdx(-1);
+      inputRef.current?.blur();
+    },
+    [onChange]
+  );
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!showDropdown) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveIdx((prev) => (prev < suggestions.length - 1 ? prev + 1 : 0));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIdx((prev) => (prev > 0 ? prev - 1 : suggestions.length - 1));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (activeIdx >= 0 && activeIdx < suggestions.length) {
+        selectItem(suggestions[activeIdx].text);
+      }
+    } else if (e.key === 'Escape') {
+      setOpen(false);
+      setActiveIdx(-1);
+    }
+  };
+
+  const highlightMatch = (text: string, query: string) => {
+    const idx = text.toLowerCase().indexOf(query.toLowerCase());
+    if (idx === -1) return <span>{text}</span>;
+    const before = text.slice(0, idx);
+    const match = text.slice(idx, idx + query.length);
+    const after = text.slice(idx + query.length);
+    return (
+      <span>
+        <span className="completion">{before}</span>
+        <span className="match">{match}</span>
+        <span className="completion">{after}</span>
+      </span>
+    );
+  };
+
+  return (
+    <div className="gsearch-container" ref={containerRef}>
+      <div className={`gsearch-box ${showDropdown ? 'open' : ''}`}>
+        <div className="gsearch-input-row">
+          <div className="gsearch-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </div>
+          <input
+            ref={inputRef}
+            className="gsearch-input"
+            value={value}
+            onChange={(e) => {
+              onChange(e.target.value);
+              setOpen(true);
+              setActiveIdx(-1);
+            }}
+            onFocus={() => setOpen(true)}
+            onKeyDown={handleKeyDown}
+            placeholder="Cari data transaksi…"
+            autoComplete="off"
+          />
+          {value && (
+            <button
+              className="gsearch-clear"
+              onClick={() => {
+                onChange('');
+                setOpen(false);
+                inputRef.current?.focus();
+              }}
+              tabIndex={-1}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          )}
+        </div>
+      </div>
+      {showDropdown && (
+        <div className="gsearch-dropdown">
+          <div className="gsearch-divider" />
+          <div className="gsearch-suggestions">
+            {suggestions.map((s, i) => (
+              <div
+                key={`${s.category}-${s.text}`}
+                className={`gsearch-item ${i === activeIdx ? 'active' : ''}`}
+                onMouseEnter={() => setActiveIdx(i)}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => selectItem(s.text)}
+              >
+                <div className="gsearch-item-icon">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                </div>
+                <div className="gsearch-item-text">
+                  {highlightMatch(s.text, value)}
+                </div>
+                <span className="gsearch-item-category">{s.category}</span>
+                <div className="gsearch-item-action">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="9 4 15 10 9 16" />
+                  </svg>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ================== GOOGLE-STYLE FILTER SELECT ================== */
+function AutocompleteFilterSelect({
+  value,
+  onChange,
+  options,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: any[];
+  placeholder: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [activeIdx, setActiveIdx] = useState(-1);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // All options including 'all'
+  const allOptions = useMemo(
+    () => [{ value: 'all', label: placeholder }, ...options.map((o: any) => ({ value: String(o), label: String(o) }))],
+    [options, placeholder]
+  );
+
+  const filtered = useMemo(() => {
+    if (!query.trim()) return allOptions;
+    const q = query.toLowerCase();
+    return allOptions.filter((o) => o.label.toLowerCase().includes(q));
+  }, [query, allOptions]);
+
+  const displayValue = value === 'all' ? '' : String(value);
+
+  // Close on click outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setQuery('');
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const selectOption = useCallback(
+    (val: string) => {
+      onChange(val);
+      setOpen(false);
+      setQuery('');
+      setActiveIdx(-1);
+    },
+    [onChange]
+  );
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!open) {
+      if (e.key === 'ArrowDown' || e.key === 'Enter') {
+        e.preventDefault();
+        setOpen(true);
+      }
+      return;
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveIdx((prev) => (prev < filtered.length - 1 ? prev + 1 : 0));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIdx((prev) => (prev > 0 ? prev - 1 : filtered.length - 1));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (activeIdx >= 0 && activeIdx < filtered.length) {
+        selectOption(filtered[activeIdx].value);
+      }
+    } else if (e.key === 'Escape') {
+      setOpen(false);
+      setQuery('');
+      setActiveIdx(-1);
+    }
+  };
+
+  const highlightMatch = (text: string, q: string) => {
+    if (!q.trim()) return <span>{text}</span>;
+    const idx = text.toLowerCase().indexOf(q.toLowerCase());
+    if (idx === -1) return <span>{text}</span>;
+    const before = text.slice(0, idx);
+    const match = text.slice(idx, idx + q.length);
+    const after = text.slice(idx + q.length);
+    return (
+      <span>
+        <span className="completion">{before}</span>
+        <span className="match">{match}</span>
+        <span className="completion">{after}</span>
+      </span>
+    );
+  };
+
+  return (
+    <div className="gfilter-container" ref={containerRef}>
+      <div className={`gfilter-box ${open ? 'open' : ''}`}>
+        <div
+          className="gfilter-input-row"
+          onClick={() => {
+            setOpen(true);
+            setTimeout(() => inputRef.current?.focus(), 0);
+          }}
+        >
+          <input
+            ref={inputRef}
+            className="gfilter-input"
+            value={open ? query : displayValue}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setActiveIdx(-1);
+            }}
+            onFocus={() => setOpen(true)}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            autoComplete="off"
+          />
+          <div className={`gfilter-chevron ${open ? 'open' : ''}`}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </div>
+        </div>
+      </div>
+      {open && (
+        <div className="gfilter-dropdown">
+          <div className="gfilter-options">
+            {filtered.length === 0 ? (
+              <div className="gfilter-item" style={{ color: '#9aa0a6', cursor: 'default' }}>
+                Tidak ada hasil
+              </div>
+            ) : (
+              filtered.map((o, i) => (
+                <div
+                  key={o.value}
+                  className={`gfilter-item ${i === activeIdx ? 'active' : ''} ${value === o.value ? 'selected' : ''}`}
+                  onMouseEnter={() => setActiveIdx(i)}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => selectOption(o.value)}
+                >
+                  <div className="gfilter-item-check">
+                    {value === o.value && (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    )}
+                  </div>
+                  <div className="gfilter-item-text">
+                    {highlightMatch(o.label, query)}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -534,19 +878,13 @@ export default function DashboardAnalytics() {
                 : "Memuat data..."}
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-            <div className="relative flex-1 lg:flex-none">
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">{Icons.search}</div>
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Cari data…"
-                className="w-full lg:w-56 pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all duration-200 shadow-sm"
-              />
+          <div className="flex flex-col gap-3 w-full lg:w-auto">
+            <AutocompleteSearch value={search} onChange={setSearch} rows={rows} />
+            <div className="flex flex-wrap items-center gap-3">
+              <AutocompleteFilterSelect value={year} onChange={setYear} options={years} placeholder="Tahun" />
+              <AutocompleteFilterSelect value={month} onChange={setMonth} options={months} placeholder="Bulan" />
+              <AutocompleteFilterSelect value={satkerFilter} onChange={setSatkerFilter} options={satkers} placeholder="Semua Satker" />
             </div>
-            <FilterSelect value={year} onChange={setYear} options={years} placeholder="Tahun" />
-            <FilterSelect value={month} onChange={setMonth} options={months} placeholder="Bulan" />
-            <FilterSelect value={satkerFilter} onChange={setSatkerFilter} options={satkers} placeholder="Semua Satker" />
           </div>
         </div>
 
@@ -814,31 +1152,7 @@ function SidebarItem({
   );
 }
 
-/* ================== FILTER SELECT ================== */
-function FilterSelect({ value, onChange, options, placeholder }: {
-  value: string;
-  onChange: (v: string) => void;
-  options: any[];
-  placeholder: string;
-}) {
-  return (
-    <div className="relative">
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="appearance-none bg-white border border-slate-200 px-4 pr-8 py-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all duration-200 shadow-sm cursor-pointer"
-      >
-        <option value="all">{placeholder}</option>
-        {options.map((o: any) => (
-          <option key={o} value={o}>{o}</option>
-        ))}
-      </select>
-      <div className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
-        {Icons.chevronDown}
-      </div>
-    </div>
-  );
-}
+/* FilterSelect replaced by AutocompleteFilterSelect above */
 
 /* ================== KPI CARD ================== */
 function KpiCard({ title, value, subtitle, gradient, bgGlow, iconPath }: {
