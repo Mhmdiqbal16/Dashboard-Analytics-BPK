@@ -1087,6 +1087,54 @@ export default function DashboardAnalytics() {
               </div>
               <CalendarHeatmap data={heatmapData} year={year} />
             </div>
+
+            {/* Top 10 Deskripsi Transaksi */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-base font-semibold text-slate-800">Top 10 Deskripsi Transaksi</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Transaksi terbesar berdasarkan deskripsi</p>
+                </div>
+                <span className="text-xs bg-rose-50 text-rose-600 px-2.5 py-1 rounded-full font-medium">Top 10</span>
+              </div>
+              <ResponsiveContainer width="100%" height={Math.max(360, byDeskripsi.slice(0, 10).length * 44)}>
+                <BarChart
+                  data={byDeskripsi.slice(0, 10).map((d: any) => ({
+                    ...d,
+                    shortName: d.name.length > 45 ? d.name.slice(0, 42) + '…' : d.name,
+                  }))}
+                  layout="vertical"
+                  margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
+                  <XAxis type="number" tickFormatter={formatShort} tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                  <YAxis
+                    type="category"
+                    dataKey="shortName"
+                    width={220}
+                    tick={{ fontSize: 12, fill: '#64748b' }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    formatter={(v: any) => [formatCurrency(v), 'Total Belanja']}
+                    labelFormatter={(label: string) => {
+                      const item = byDeskripsi.slice(0, 10).find((d: any) =>
+                        d.name === label || d.name.startsWith(label.replace('…', ''))
+                      );
+                      return item ? (item as any).name : label;
+                    }}
+                    contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '13px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', maxWidth: '400px' }}
+                    labelStyle={{ fontWeight: 600, marginBottom: 4, whiteSpace: 'pre-wrap' as any, wordBreak: 'break-word' as any }}
+                  />
+                  <Bar dataKey="value" radius={[0, 8, 8, 0]} maxBarSize={36}>
+                    {byDeskripsi.slice(0, 10).map((_: any, i: number) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </>
         )}
 
