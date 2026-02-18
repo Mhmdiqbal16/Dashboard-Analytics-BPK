@@ -756,7 +756,7 @@ export default function DashboardAnalytics() {
   }, [filteredRows]);
 
   const menuItems = [
-    { id: "dashboard", label: "Dashboard", icon: Icons.dashboard },
+    { id: "dashboard", label: "Overview", icon: Icons.dashboard },
     { id: "belanja", label: "Belanja", icon: Icons.belanja },
     { id: "satker", label: "Satuan Kerja", icon: Icons.satker },
   ];
@@ -794,8 +794,8 @@ export default function DashboardAnalytics() {
             </div>
             {!sidebarCollapsed && (
               <div className="min-w-0">
-                <h1 className="font-bold text-sm text-white leading-tight tracking-tight">Dashboard</h1>
-                <h1 className="font-bold text-sm text-indigo-300 leading-tight tracking-tight">Analytics BPK</h1>
+                <h1 className="font-bold text-sm text-white leading-tight tracking-tight">Analytics Dashboard</h1>
+                <h1 className="font-bold text-sm text-indigo-300 leading-tight tracking-tight">Direktorat V.B BPK RI</h1>
               </div>
             )}
           </div>
