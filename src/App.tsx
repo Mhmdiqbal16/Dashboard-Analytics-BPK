@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { GoogleLogin, googleLogout, CredentialResponse } from "@react-oauth/google";
+import { jwtDecode } from "jwt-decode";
 import "./App.css";
 import {
   PieChart,
@@ -587,6 +589,60 @@ function AutocompleteFilterSelect({
   );
 }
 
+/* ================== LOGIN PAGE ================== */
+function LoginPage({ onSuccess }: { onSuccess: (credential: CredentialResponse) => void }) {
+  return (
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center relative overflow-hidden">
+      {/* Background Effects */}
+      <div className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] rounded-full bg-indigo-600/20 blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full bg-cyan-600/10 blur-[100px] pointer-events-none" />
+
+      <div className="relative z-10 w-full max-w-md p-8">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
+
+          <div className="flex flex-col items-center text-center space-y-6">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/25 mb-2">
+              <img
+                src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQz1-NDeFW4BHa471bualUk704QIQv-BfAvtw&s"
+                alt="Logo BPK"
+                className="w-10 h-10 object-contain rounded-lg"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <h1 className="text-2xl font-bold text-white tracking-tight">Analytics Dashboard</h1>
+              <p className="text-slate-400 text-sm">Direktorat V.B BPK RI</p>
+            </div>
+
+            <div className="w-full h-px bg-white/10" />
+
+            <div className="py-4 w-full flex justify-center">
+              <GoogleLogin
+                onSuccess={onSuccess}
+                onError={() => console.log('Login Failed')}
+                theme="filled_black"
+                shape="pill"
+                size="large"
+                width="100%"
+                text="continue_with"
+              />
+            </div>
+
+            <p className="text-xs text-slate-500">
+              Silakan login menggunakan akun Google resmi BPK RI untuk mengakses dashboard.
+            </p>
+          </div>
+        </div>
+
+        <p className="text-center text-slate-600 text-xs mt-6">
+          © 2025 BPK RI · Hak Cipta Dilindungi
+        </p>
+      </div>
+    </div>
+  );
+}
+
 /* ================== MAIN ================== */
 export default function DashboardAnalytics() {
   const [rows, setRows] = useState<any[]>([]);
@@ -598,6 +654,33 @@ export default function DashboardAnalytics() {
   const [search, setSearch] = useState("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activePieIndex, setActivePieIndex] = useState(-1);
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      try {
+        const decoded = jwtDecode(token);
+        setUser(decoded);
+      } catch (e) {
+        localStorage.removeItem('auth_token');
+      }
+    }
+  }, []);
+
+  const handleLogin = (credentialResponse: CredentialResponse) => {
+    if (credentialResponse.credential) {
+      localStorage.setItem('auth_token', credentialResponse.credential);
+      const decoded = jwtDecode(credentialResponse.credential);
+      setUser(decoded);
+    }
+  };
+
+  const handleLogout = () => {
+    googleLogout();
+    localStorage.removeItem('auth_token');
+    setUser(null);
+  };
 
   useEffect(() => {
     // PASTIKAN SHEET_ID DAN SHEET_NAME SESUAI DENGAN FILE YANG DIUPLOAD
@@ -774,6 +857,10 @@ export default function DashboardAnalytics() {
     deskripsi: "Deskripsi Transaksi",
   }[page] || "Dashboard";
 
+  if (!user) {
+    return <LoginPage onSuccess={handleLogin} />;
+  }
+
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-blue-50">
       {/* ====== SIDEBAR ====== */}
@@ -848,17 +935,21 @@ export default function DashboardAnalytics() {
         <div className="relative z-10 p-3 pt-0">
           <div className="h-px bg-gradient-to-r from-transparent via-slate-600 to-transparent mb-3" />
           <div className={`flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 cursor-pointer ${sidebarCollapsed ? 'justify-center' : ''}`}>
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center flex-shrink-0 shadow-md shadow-indigo-500/20">
-              <span className="text-white font-bold text-sm">A</span>
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center flex-shrink-0 shadow-md shadow-indigo-500/20 overflow-hidden">
+              {user.picture ? (
+                <img src={user.picture} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-white font-bold text-sm">{user.name?.charAt(0) || 'U'}</span>
+              )}
             </div>
             {!sidebarCollapsed && (
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-white truncate">Admin BPK</p>
-                <p className="text-[11px] text-slate-400 truncate">admin@bpk.go.id</p>
+                <p className="text-sm font-medium text-white truncate">{user.name}</p>
+                <p className="text-[11px] text-slate-400 truncate">{user.email}</p>
               </div>
             )}
             {!sidebarCollapsed && (
-              <div className="text-slate-400 hover:text-red-400">
+              <div onClick={(e) => { e.stopPropagation(); handleLogout(); }} className="text-slate-400 hover:text-red-400 cursor-pointer" title="Keluar">
                 {Icons.logout}
               </div>
             )}

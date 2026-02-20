@@ -11,6 +11,12 @@ Currently, two official plugins are available:
 
 The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
 
+## Google OAuth Setup
+
+1. This project uses `@react-oauth/google`.
+2. The Client ID is configured in `src/main.tsx`.
+3. To run locally, ensure `http://localhost:5173` is added to your Google Cloud Console "Authorized JavaScript origins".
+
 ## Expanding the ESLint configuration
 
 If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
