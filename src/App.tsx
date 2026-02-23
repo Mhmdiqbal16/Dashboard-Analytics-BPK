@@ -630,7 +630,7 @@ function LoginPage({ onSuccess }: { onSuccess: (credential: CredentialResponse) 
             </div>
 
             <p className="text-xs text-slate-500">
-              Silakan login menggunakan akun Google resmi BPK RI untuk mengakses dashboard.
+              Silakan login menggunakan akun Google untuk mengakses dashboard.
             </p>
           </div>
         </div>
