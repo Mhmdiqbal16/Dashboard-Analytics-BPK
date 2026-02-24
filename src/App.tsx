@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { GoogleLogin, googleLogout, CredentialResponse } from "@react-oauth/google";
+import { GoogleLogin, googleLogout } from "@react-oauth/google";
+import type { CredentialResponse } from "@react-oauth/google";
 import { jwtDecode } from "jwt-decode";
 import "./App.css";
 import {
@@ -1098,6 +1099,9 @@ export default function DashboardAnalytics() {
               </div>
             </div>
 
+            {/* Belanja Per Satker Table */}
+            <BelanjaPerSatkerTable data={bySatker as any[]} />
+
             {/* Monthly Trend */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
               <div className="flex items-center justify-between mb-6">
@@ -1317,6 +1321,105 @@ function KpiCard({ title, value, subtitle, gradient, bgGlow, iconPath }: {
         </div>
         <p className="text-2xl font-bold text-slate-800 tracking-tight leading-none mb-1">{value}</p>
         <p className="text-xs text-slate-500 truncate">{subtitle}</p>
+      </div>
+    </div>
+  );
+}
+
+/* ================== BELANJA PER SATKER TABLE ================== */
+function BelanjaPerSatkerTable({ data }: { data: any[] }) {
+  const [search, setSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return data;
+    return data.filter((d) => d.name.toLowerCase().includes(search.toLowerCase()));
+  }, [data, search]);
+
+  const totalPages = Math.ceil(filtered.length / pageSize);
+  const paginated = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const maxValue = data[0]?.value || 1;
+
+  const ROW_COLORS = [
+    '#818cf8', '#34d399', '#fbbf24', '#f87171', '#22d3ee',
+    '#a78bfa', '#fb923c', '#f472b6', '#4ade80', '#38bdf8',
+  ];
+
+  const handleSearch = (v: string) => { setSearch(v); setCurrentPage(1); };
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h3 className="text-base font-semibold text-slate-800">Belanja Per Satker</h3>
+          <p className="text-xs text-slate-500 mt-0.5">Ringkasan belanja per satuan kerja</p>
+        </div>
+        <span className="text-xs bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded-full font-medium">
+          {filtered.length} records
+        </span>
+      </div>
+
+      <div className="mb-4">
+        <div className="relative max-w-xs">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            className="w-full pl-8 pr-3 py-2 text-sm rounded-xl border border-slate-200 bg-slate-50 text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition"
+            placeholder={`Search ${data.length} records...`}
+            value={search}
+            onChange={(e) => handleSearch(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-100">
+              <th className="py-3 px-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Nama_Satker</th>
+              <th className="py-3 px-4 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">Sum(Debet)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {paginated.length === 0 ? (
+              <tr><td colSpan={2} className="py-8 text-center text-slate-400 text-sm">Tidak ada data ditemukan</td></tr>
+            ) : paginated.map((row: any, i: number) => {
+              const globalIdx = (currentPage - 1) * pageSize + i;
+              const color = ROW_COLORS[globalIdx % ROW_COLORS.length];
+              const nextColor = ROW_COLORS[(globalIdx + 1) % ROW_COLORS.length];
+              const pct = Math.max(4, (row.value / maxValue) * 100);
+              return (
+                <tr key={i} className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors duration-150">
+                  <td className="py-3 px-4 text-slate-700 break-words">{row.name}</td>
+                  <td className="py-3 px-4 text-right relative">
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 h-8 rounded-lg opacity-20 pointer-events-none"
+                      style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${color}, ${nextColor})` }} />
+                    <span className="relative z-10 font-semibold text-slate-800 tabular-nums">{formatCurrency(row.value)}</span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="flex justify-between items-center mt-5 text-sm">
+        <span className="text-slate-500">
+          Halaman {currentPage} dari {totalPages || 1}
+          {filtered.length !== data.length && <span className="ml-2 text-indigo-500">({filtered.length} hasil)</span>}
+        </span>
+        <div className="flex gap-2">
+          <button disabled={currentPage === 1} onClick={() => setCurrentPage((p) => p - 1)}
+            className="px-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 text-sm font-medium">
+            Prev
+          </button>
+          <button disabled={currentPage === totalPages || totalPages === 0} onClick={() => setCurrentPage((p) => p + 1)}
+            className="px-4 py-2 rounded-xl bg-indigo-500 text-white hover:bg-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 text-sm font-medium shadow-sm">
+            Next
+          </button>
+        </div>
       </div>
     </div>
   );
